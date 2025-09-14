@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Great Filter Location Probability Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.2em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .subtitle {
+            text-align: center;
+            margin-bottom: 30px;
+            opacity: 0.8;
+            font-size: 1.1em;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .control-group h3 {
+            margin-top: 0;
+            color: #87ceeb;
+            border-bottom: 2px solid rgba(135, 206, 235, 0.3);
+            padding-bottom: 10px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 14px;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: linear-gradient(45deg, #ee5a24, #ff6b6b);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .step-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 10px;
+            color: #333;
+        }
+        
+        .evidence-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #87ceeb;
+        }
+        
+        .prob-change {
+            font-weight: bold;
+            color: #90EE90;
+        }
+        
+        .prob-change.negative {
+            color: #FFB6C1;
+        }
+        
+        .analysis-table {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .analysis-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .analysis-table th, .analysis-table td {
+            padding: 8px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .analysis-table th {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+        
+        .existential-risk {
+            background: rgba(255, 100, 100, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ff6464;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .good-news {
+            background: rgba(100, 255, 100, 0.2);
+            border-left-color: #64ff64;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧬 Great Filter Location Probability Simulator</h1>
+        <div class="subtitle">
+            Two-Layer Model: Survival Probabilities → Filter Location Probabilities<br>
+            Key Question: Where is the Great Filter most likely located?
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3>Setup Parameters</h3>
+                <label for="numSteps">Number of Evolutionary Steps:</label>
+                <input type="number" id="numSteps" value="10" min="3" max="15">
+                
+                <label for="priorShape">Prior Survival Distribution:</label>
+                <select id="priorShape">
+                    <option value="uniform" selected>Uniform (All steps equally hard)</option>
+                    <option value="early-hard">Early Hard (Biology difficult)</option>
+                    <option value="late-hard">Late Hard (Technology difficult)</option>
+                    <option value="middle-hard">Middle Hard (Complexity crisis)</option>
+                </select>
+                
+                <label for="baseProbability">Base Survival Probability:</label>
+                <input type="range" id="baseProbability" min="0.1" max="0.9" step="0.05" value="0.5">
+                <span id="baseProbValue">50%</span>
+                
+                <button onclick="initializeModel()">Initialize Model</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>New Evidence</h3>
+                <label for="evidenceStep">Evidence at Step:</label>
+                <input type="number" id="evidenceStep" value="3" min="1">
+                
+                <label for="lifeStatus">Life Status:</label>
+                <select id="lifeStatus">
+                    <option value="extinct">Extinct (Fossil)</option>
+                    <option value="extant">Extant (Still Alive)</option>
+                </select>
+                
+                <label for="updateStrength">Update Strength:</label>
+                <input type="range" id="updateStrength" min="0.1" max="2.0" step="0.1" value="1.0">
+                <span id="updateValue">1.0x</span>
+                
+                <button onclick="addEvidence()">Add Evidence</button>
+                <button onclick="resetModel()">Reset to Prior</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>Humanity's Position</h3>
+                <label for="humanityStep">Humanity is currently at step:</label>
+                <input type="number" id="humanityStep" value="7" min="1">
+                <p style="font-size: 12px; opacity: 0.8;">
+                    This affects the "behind us vs ahead of us" calculation for existential risk assessment.
+                </p>
+                
+                <div id="riskAssessment" class="existential-risk">
+                    <div id="riskText">Initialize model to see risk assessment</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="evidenceInfo" class="evidence-info" style="display: none;">
+            <h3>Evidence Impact Analysis</h3>
+            <div id="evidenceDetails"></div>
+        </div>
+        
+        <div class="chart-row">
+            <div class="chart-container">
+                <canvas id="survivalChart"></canvas>
+                <div class="step-labels" id="stepLabels1"></div>
+            </div>
+            <div class="chart-container">
+                <canvas id="filterLocationChart"></canvas>
+                <div class="step-labels" id="stepLabels2"></div>
+            </div>
+            <div class="chart-container">
+                <canvas id="cumulativeChart"></canvas>
+                <div class="step-labels" id="stepLabels3"></div>
+            </div>
+        </div>
+        
+        <div class="analysis-table">
+            <h3>Detailed Analysis</h3>
+            <table id="analysisTable">
+                <thead>
+                    <tr>
+                        <th>Step</th>
+                        <th>Name</th>
+                        <th>Survival Prob</th>
+                        <th>Filter Location Prob</th>
+                        <th>Cumulative Reach Prob</th>
+                        <th>Difficulty Factor</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let survivalChart, filterLocationChart, cumulativeChart;
+        let numSteps = 10;
+        let priorSurvivalProbs = [];
+        let currentSurvivalProbs = [];
+        let priorFilterLocationProbs = [];
+        let currentFilterLocationProbs = [];
+        let lastProbAhead = null;
+        let baselineProbAhead = null;
+        
+        const stepNames = [
+            'Abiogenesis',
+            'Metabolism', 
+            'Complex Cells',
+            'Multicellularity',
+            'Complex Organisms',
+            'Intelligence',
+            'Technology',
+            'Space Travel',
+            'Galactic Expansion',
+            'Transcendence',
+            'Post-Biological',
+            'Dimensional Travel',
+            'Universal Engineering',
+            'Cosmic Transcendence',
+            'Ultimate Understanding'
+        ];
+
+        // Event listeners
+        document.getElementById('baseProbability').addEventListener('input', function(e) {
+            document.getElementById('baseProbValue').textContent = (e.target.value * 100).toFixed(0) + '%';
+        });
+
+        document.getElementById('updateStrength').addEventListener('input', function(e) {
+            document.getElementById('updateValue').textContent = e.target.value + 'x';
+        });
+
+        function generateSurvivalProbabilities(shape, steps, baseProb) {
+            let probs = new Array(steps).fill(baseProb);
+            
+            switch(shape) {
+                case 'uniform':
+                    // All steps have same probability
+                    break;
+                    
+                case 'early-hard':
+                    for(let i = 0; i < steps; i++) {
+                        const factor = Math.exp(-i * 0.2);
+                        probs[i] = Math.max(0.1, Math.min(0.9, baseProb + (0.8 - baseProb) * (1 - factor)));
+                    }
+                    break;
+                    
+                case 'late-hard':
+                    for(let i = 0; i < steps; i++) {
+                        const factor = Math.exp((i - steps/2) * 0.3);
+                        probs[i] = Math.max(0.1, Math.min(0.9, baseProb * (2 - factor)));
+                    }
+                    break;
+                    
+                case 'middle-hard':
+                    for(let i = 0; i < steps; i++) {
+                        const center = steps / 2;
+                        const distance = Math.abs(i - center);
+                        const factor = Math.exp(-distance * 0.4);
+                        probs[i] = Math.max(0.1, Math.min(0.9, baseProb * factor + 0.2));
+                    }
+                    break;
+            }
+            
+            return probs;
+        }
+
+        function calculateFilterLocationProbabilities(survivalProbs) {
+            // The "filter location probability" is based on how much each step 
+            // contributes to the overall difficulty of the evolutionary process
+            
+            const difficultyFactors = survivalProbs.map(p => 1 - p); // Higher difficulty = lower survival
+            const totalDifficulty = difficultyFactors.reduce((sum, d) => sum + d, 0);
+            
+            // Normalize to get probability mass distribution
+            if (totalDifficulty === 0) {
+                return new Array(survivalProbs.length).fill(1 / survivalProbs.length);
+            }
+            
+            return difficultyFactors.map(d => d / totalDifficulty);
+        }
+
+        function calculateCumulativeProbabilities(survivalProbs) {
+            let cumulative = [];
+            let product = 1.0;
+            
+            for(let i = 0; i < survivalProbs.length; i++) {
+                product *= survivalProbs[i];
+                cumulative.push(product);
+            }
+            
+            return cumulative;
+        }
+
+        function initializeModel() {
+            numSteps = parseInt(document.getElementById('numSteps').value);
+            const shape = document.getElementById('priorShape').value;
+            const baseProb = parseFloat(document.getElementById('baseProbability').value);
+            
+            // Update input constraints
+            document.getElementById('evidenceStep').max = numSteps;
+            document.getElementById('humanityStep').max = numSteps;
+            
+            // Generate initial survival probabilities
+            priorSurvivalProbs = generateSurvivalProbabilities(shape, numSteps, baseProb);
+            currentSurvivalProbs = [...priorSurvivalProbs];
+            
+            // Calculate filter location probabilities
+            priorFilterLocationProbs = calculateFilterLocationProbabilities(priorSurvivalProbs);
+            currentFilterLocationProbs = [...priorFilterLocationProbs];
+
+            // set baseline relative to humanity’s current step
+            const humanityStep = parseInt(document.getElementById('humanityStep').value) - 1;
+            let probAhead = 0;
+            for (let i = 0; i < numSteps; i++) {
+                if (i > humanityStep) probAhead += currentFilterLocationProbs[i];
+            }
+            baselineProbAhead = probAhead;
+            
+            updateAllCharts();
+            updateTable();
+            updateRiskAssessment();
+            hideEvidenceInfo();
+        }
+
+        function addEvidence() {
+            const evidenceStep = parseInt(document.getElementById('evidenceStep').value) - 1; // Convert to 0-indexed
+            const lifeStatus = document.getElementById('lifeStatus').value;
+            const updateStrength = parseFloat(document.getElementById('updateStrength').value);
+            
+            if (evidenceStep >= numSteps || evidenceStep < 0) {
+                alert('Evidence step must be between 1 and ' + numSteps);
+                return;
+            }
+            
+            const oldSurvivalProbs = [...currentSurvivalProbs];
+            const oldFilterLocationProbs = [...currentFilterLocationProbs];
+            
+            // Apply your Excel-style logic
+            if (lifeStatus === 'extant') {
+                // Extant life: increase survival probabilities for steps 1 through N
+                // This shifts filter location probability to later steps
+                for(let i = 0; i <= evidenceStep; i++) {
+                    currentSurvivalProbs[i] = Math.min(0.9, currentSurvivalProbs[i] * (1 + updateStrength * 0.2));
+                }
+            } else {
+                // Extinct life: increase survival probabilities for steps 1 through N-1
+                // Decrease survival probability for step N (evidence of filter there)
+                for(let i = 0; i <= evidenceStep; i++) {
+                    currentSurvivalProbs[i] = Math.min(0.9, currentSurvivalProbs[i] * (1 + updateStrength * 0.2));
+                }
+                // Decrease the step where extinction occurred
+                if (evidenceStep+1 < numSteps) {
+                    currentSurvivalProbs[evidenceStep+1] = Math.max(0.1, currentSurvivalProbs[evidenceStep] * (1 - updateStrength * 0.2));
+                }
+            }
+            
+            // Recalculate filter location probabilities
+            currentFilterLocationProbs = calculateFilterLocationProbabilities(currentSurvivalProbs);
+            
+            showEvidenceInfo(evidenceStep, lifeStatus, updateStrength, oldSurvivalProbs, oldFilterLocationProbs);
+            updateAllCharts();
+            updateTable();
+            updateRiskAssessment();
+        }
+
+        function showEvidenceInfo(step, status, strength, oldSurvival, oldFilterLocation) {
+            const evidenceInfo = document.getElementById('evidenceInfo');
+            const evidenceDetails = document.getElementById('evidenceDetails');
+            
+            const stepName = stepNames[step];
+            const statusText = status === 'extinct' ? 'Extinct (Fossil)' : 'Extant (Still Alive)';
+            
+            let impactText = `<p><strong>Evidence:</strong> ${statusText} life found at step ${step + 1} (${stepName})</p>`;
+            impactText += `<p><strong>Update Strength:</strong> ${strength}x</p>`;
+            
+            // Show filter location probability changes
+            impactText += '<p><strong>Filter Location Probability Changes:</strong></p><ul>';
+            
+            for (let i = 0; i < numSteps; i++) {
+                const change = currentFilterLocationProbs[i] - oldFilterLocation[i];
+                if (Math.abs(change) > 0.005) {
+                    const changePercent = (change * 100).toFixed(1);
+                    const changeClass = change > 0 ? 'prob-change' : 'prob-change negative';
+                    const sign = change > 0 ? '+' : '';
+                    impactText += `<li>Step ${i + 1} (${stepNames[i]}): <span class="${changeClass}">${sign}${changePercent}%</span></li>`;
+                }
+            }
+            impactText += '</ul>';
+            
+            // Show survival probability changes
+            impactText += '<p><strong>Survival Probability Changes:</strong></p><ul>';
+            
+            for (let i = 0; i < numSteps; i++) {
+                const change = currentSurvivalProbs[i] - oldSurvival[i];
+                if (Math.abs(change) > 0.01) {
+                    const changePercent = (change * 100).toFixed(1);
+                    const changeClass = change > 0 ? 'prob-change' : 'prob-change negative';
+                    const sign = change > 0 ? '+' : '';
+                    impactText += `<li>Step ${i + 1} (${stepNames[i]}): <span class="${changeClass}">${sign}${changePercent}%</span></li>`;
+                }
+            }
+            impactText += '</ul>';
+            
+            evidenceDetails.innerHTML = impactText;
+            evidenceInfo.style.display = 'block';
+        }
+
+        function updateRiskAssessment() {
+            const humanityStep = parseInt(document.getElementById('humanityStep').value) - 1;
+            const riskDiv = document.getElementById('riskAssessment');
+            const riskText = document.getElementById('riskText');
+
+            let probBehind = 0, probAhead = 0;
+            for (let i = 0; i < numSteps; i++) {
+                if (i <= humanityStep) probBehind += currentFilterLocationProbs[i];
+                else probAhead += currentFilterLocationProbs[i];
+            }
+
+            const riskPercent = (probAhead * 100).toFixed(1);
+            const safePercent = (probBehind * 100).toFixed(1);
+
+            let trend = null;
+            if (baselineProbAhead !== null) {
+                if (probAhead > baselineProbAhead) trend = 'worse';
+                else if (probAhead < baselineProbAhead) trend = 'better';
+            }
+
+            if (trend === 'worse') {
+                riskDiv.className = 'existential-risk';
+                riskText.innerHTML = `
+                    <strong>⚠️ HIGHER EXISTENTIAL RISK</strong><br>
+                    ${riskPercent}% chance the Great Filter is ahead of humanity<br>
+                    ${safePercent}% chance it's behind us
+                `;
+            } else if (trend === 'better') {
+                riskDiv.className = 'existential-risk good-news';
+                riskText.innerHTML = `
+                    <strong>✅ LOWER EXISTENTIAL RISK</strong><br>
+                    ${safePercent}% chance the Great Filter is behind humanity<br>
+                    ${riskPercent}% chance it's ahead of us
+                `;
+            } else {
+                riskDiv.className = 'existential-risk';
+                riskText.innerHTML = `
+                    ${safePercent}% behind / ${riskPercent}% ahead
+                `;
+            }
+        }
+
+        function hideEvidenceInfo() {
+            document.getElementById('evidenceInfo').style.display = 'none';
+        }
+
+        function resetModel() {
+            currentSurvivalProbs = [...priorSurvivalProbs];
+            currentFilterLocationProbs = [...priorFilterLocationProbs];
+
+            const humanityStep = parseInt(document.getElementById('humanityStep').value) - 1;
+            let probAhead = 0;
+            for (let i = 0; i < numSteps; i++) {
+                if (i > humanityStep) probAhead += currentFilterLocationProbs[i];
+            }
+            baselineProbAhead = probAhead;
+
+            updateAllCharts();
+            updateTable();
+            updateRiskAssessment();
+            hideEvidenceInfo();
+        }
+
+        function updateAllCharts() {
+            updateSurvivalChart();
+            updateFilterLocationChart();
+            updateCumulativeChart();
+            updateStepLabels();
+        }
+
+        function updateSurvivalChart() {
+            if (survivalChart) {
+                survivalChart.destroy();
+            }
+
+            const ctx = document.getElementById('survivalChart').getContext('2d');
+            const labels = Array.from({length: numSteps}, (_, i) => `${i + 1}`);
+            
+            survivalChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Current',
+                        data: currentSurvivalProbs.map(x => (x * 100).toFixed(1)),
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 2
+                    }, {
+                        label: 'Prior',
+                        data: priorSurvivalProbs.map(x => (x * 100).toFixed(1)),
+                        backgroundColor: 'rgba(255, 99, 132, 0.3)',
+                        borderColor: 'rgba(255, 99, 132, 0.8)',
+                        borderWidth: 1,
+                        type: 'line'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Step Survival Probabilities',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Survival Probability (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateFilterLocationChart() {
+            if (filterLocationChart) {
+                filterLocationChart.destroy();
+            }
+
+            const ctx = document.getElementById('filterLocationChart').getContext('2d');
+            const labels = Array.from({length: numSteps}, (_, i) => `${i + 1}`);
+            
+            filterLocationChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Current Filter Location',
+                        data: currentFilterLocationProbs.map(x => (x * 100).toFixed(1)),
+                        backgroundColor: 'rgba(255, 107, 107, 0.8)',
+                        borderColor: 'rgba(255, 107, 107, 1)',
+                        borderWidth: 2
+                    }, {
+                        label: 'Prior Filter Location',
+                        data: priorFilterLocationProbs.map(x => (x * 100).toFixed(1)),
+                        backgroundColor: 'rgba(135, 206, 235, 0.3)',
+                        borderColor: 'rgba(135, 206, 235, 0.8)',
+                        borderWidth: 1,
+                        type: 'line'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Great Filter Location Probability',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Filter Location Probability (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCumulativeChart() {
+            if (cumulativeChart) {
+                cumulativeChart.destroy();
+            }
+
+            const ctx = document.getElementById('cumulativeChart').getContext('2d');
+            const labels = Array.from({length: numSteps}, (_, i) => `${i + 1}`);
+            
+            const currentCumulative = calculateCumulativeProbabilities(currentSurvivalProbs);
+            const priorCumulative = calculateCumulativeProbabilities(priorSurvivalProbs);
+            
+            cumulativeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Current Cumulative',
+                        data: currentCumulative.map(x => (x * 100).toFixed(4)),
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 3,
+                        fill: true
+                    }, {
+                        label: 'Prior Cumulative',
+                        data: priorCumulative.map(x => (x * 100).toFixed(4)),
+                        backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Cumulative Reach Probability',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            type: 'logarithmic',
+                            title: {
+                                display: true,
+                                text: 'Cumulative Probability (%) - Log Scale'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTable() {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+            
+            const cumulative = calculateCumulativeProbabilities(currentSurvivalProbs);
+            
+            for(let i = 0; i < numSteps; i++) {
+                const row = tableBody.insertRow();
+                const difficulty = 1 - currentSurvivalProbs[i];
+                
+                row.insertCell(0).textContent = i + 1;
+                row.insertCell(1).textContent = stepNames[i];
+                row.insertCell(2).textContent = (currentSurvivalProbs[i] * 100).toFixed(1) + '%';
+                row.insertCell(3).textContent = (currentFilterLocationProbs[i] * 100).toFixed(1) + '%';
+                row.insertCell(4).textContent = (cumulative[i] * 100).toFixed(4) + '%';
+                row.insertCell(5).textContent = (difficulty * 100).toFixed(1) + '%';
+                
+                // Highlight steps with high filter probability
+                if(currentFilterLocationProbs[i] > 0.15) {
+                    row.style.backgroundColor = '#ffe6e6';
+                }
+            }
+        }
+
+        function updateStepLabels() {
+            const charts = {
+                stepLabels1: survivalChart,
+                stepLabels2: filterLocationChart,
+                stepLabels3: cumulativeChart
+            };
+
+            Object.entries(charts).forEach(([id, chart]) => {
+                const container = document.getElementById(id);
+                container.innerHTML = '';
+                container.style.position = 'relative';
+                container.style.height = '20px'; // more room for multi-line
+                container.style.overflow = 'visible';
+
+                if (!chart || !chart.scales || !chart.scales.x) return;
+
+                const xScale = chart.scales.x;
+
+                for (let i = 0; i < numSteps; i++) {
+                    const label = document.createElement('div');
+                    label.innerHTML = `${stepNames[i]}`; // use innerHTML so wrapping works
+                    label.style.position = 'absolute';
+                    label.style.bottom = '0';
+                    label.style.left = xScale.getPixelForValue(i) + 'px';
+                    label.style.transform = 'translateX(-50px) rotate(-45deg)'; 
+                    label.style.transformOrigin = 'center center';
+                    label.style.fontSize = '10px';
+                    label.style.color = '#666';
+                    label.style.whiteSpace = 'normal'; // allow wrapping
+                    label.style.width = '60px';        // constrain width to force 2 lines
+                    label.style.textAlign = 'center';
+                    container.appendChild(label);
+                }
+            });
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            initializeModel();
+        };
+    </script>
+</body>
+</html>
