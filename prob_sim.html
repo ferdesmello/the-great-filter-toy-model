@@ -191,6 +191,22 @@
             color: #87ceeb;
             font-size: 14px;
         }
+
+        .footer-link {
+            text-align: right;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .footer-link a {
+            color: #87ceeb;   /* matches your accent */
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .footer-link a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -302,6 +318,12 @@
         </div>
     </div>
 
+    <div class="footer-link">
+        <a href="https://github.com/ferdesmello/the-great-filter-toy-model" target="_blank">
+            Source code and more
+        </a>
+    </div>
+
     <script>
         let survivalChart, filterLocationChart, cumulativeChart;
         let numSteps = 10;
@@ -329,6 +351,7 @@
             'Ultimate Understanding'
         ];
 
+        //-------------------------------------------------------------------------------
         function toggleExtinctControls() {
             const lifeStatus = document.getElementById('lifeStatus').value;
             const extinctControls = document.getElementById('extinctControls');
@@ -351,6 +374,7 @@
             document.getElementById('updateValueNext').textContent = strength.toFixed(1) + 'x';
         });
 
+        //-------------------------------------------------------------------------------
         function generateSurvivalProbabilities(shape, steps, baseProb) {
             let probs = new Array(steps).fill(baseProb);
             
@@ -381,6 +405,7 @@
             return probs;
         }
 
+        //-------------------------------------------------------------------------------
         function calculateFilterLocationProbabilities(survivalProbs) {
             const difficultyFactors = survivalProbs.map(p => 1 - p);
             const totalDifficulty = difficultyFactors.reduce((sum, d) => sum + d, 0);
@@ -392,6 +417,7 @@
             return difficultyFactors.map(d => d / totalDifficulty);
         }
 
+        //-------------------------------------------------------------------------------
         function calculateCumulativeProbabilities(survivalProbs) {
             let cumulative = [];
             let product = 1.0;
@@ -403,6 +429,7 @@
             return cumulative;
         }
 
+        //-------------------------------------------------------------------------------
         function initializeModel() {
             numSteps = parseInt(document.getElementById('numSteps').value);
             const shape = document.getElementById('priorShape').value;
@@ -431,6 +458,7 @@
             toggleExtinctControls();
         }
 
+        //-------------------------------------------------------------------------------
         function addEvidence() {
             const evidenceStep = parseInt(document.getElementById('evidenceStep').value) - 1;
             const lifeStatus = document.getElementById('lifeStatus').value;
@@ -473,6 +501,7 @@
             updateRiskAssessment();
         }
 
+        //-------------------------------------------------------------------------------
         function showEvidenceInfo(step, status, strengthPrior, strengthNext, oldSurvival, oldFilterLocation) {
             const evidenceInfo = document.getElementById('evidenceInfo');
             const evidenceDetails = document.getElementById('evidenceDetails');
@@ -514,6 +543,7 @@
             evidenceInfo.style.display = 'block';
         }
 
+        //-------------------------------------------------------------------------------
         function updateRiskAssessment() {
             const humanityStep = parseInt(document.getElementById('humanityStep').value) - 1;
             const riskDiv = document.getElementById('riskAssessment');
@@ -556,10 +586,12 @@
             }
         }
 
+        //-------------------------------------------------------------------------------
         function hideEvidenceInfo() {
             document.getElementById('evidenceInfo').style.display = 'none';
         }
 
+        //-------------------------------------------------------------------------------
         function resetModel() {
             currentSurvivalProbs = [...priorSurvivalProbs];
             currentFilterLocationProbs = [...priorFilterLocationProbs];
@@ -577,12 +609,14 @@
             hideEvidenceInfo();
         }
 
+        //-------------------------------------------------------------------------------
         function updateAllCharts() {
             updateSurvivalChart();
             updateFilterLocationChart();
             updateCumulativeChart();
         }
 
+        //-------------------------------------------------------------------------------
         function updateSurvivalChart() {
             if (survivalChart) {
                 survivalChart.destroy();
@@ -651,6 +685,7 @@
             });
         }
 
+        //-------------------------------------------------------------------------------
         function updateFilterLocationChart() {
             if (filterLocationChart) {
                 filterLocationChart.destroy();
@@ -719,6 +754,7 @@
             });
         }
 
+        //-------------------------------------------------------------------------------
         function updateCumulativeChart() {
             if (cumulativeChart) {
                 cumulativeChart.destroy();
@@ -810,6 +846,7 @@
             });
         }
 
+        //-------------------------------------------------------------------------------
         function updateTable() {
             const tableBody = document.getElementById('tableBody');
             tableBody.innerHTML = '';
@@ -841,6 +878,7 @@
             }
         }
 
+        //-------------------------------------------------------------------------------
         // Initialize on page load
         window.onload = function() {
             // Update initial slider values for display
