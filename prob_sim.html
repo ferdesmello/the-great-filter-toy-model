@@ -58,7 +58,7 @@
             border-bottom: 2px solid rgba(135, 206, 235, 0.3);
             padding-bottom: 10px;
         }
-        
+
         label {
             display: block;
             margin-bottom: 5px;
@@ -68,6 +68,7 @@
         input, select, button {
             width: 100%;
             padding: 10px;
+            box-sizing: border-box;
             margin-bottom: 15px;
             border: none;
             border-radius: 5px;
@@ -76,6 +77,13 @@
             font-size: 14px;
         }
         
+        .control-group input,
+        .control-group select,
+        .control-group button {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
         button {
             background: linear-gradient(45deg, #ff6b6b, #ee5a24);
             color: white;
@@ -95,6 +103,7 @@
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
+            height: 400px; /* Taller charts */
         }
         
         .chart-row {
@@ -167,6 +176,21 @@
             background: rgba(100, 255, 100, 0.2);
             border-left-color: #64ff64;
         }
+
+        .conditional-controls {
+            border: 2px solid rgba(135, 206, 235, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            background: rgba(135, 206, 235, 0.05);
+        }
+
+        .conditional-controls h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #87ceeb;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -192,8 +216,8 @@
                 </select>
                 
                 <label for="baseProbability">Base Survival Probability:</label>
-                <input type="range" id="baseProbability" min="0.1" max="0.9" step="0.05" value="0.5">
-                <span id="baseProbValue">50%</span>
+                <input type="range" id="baseProbability" min="0.01" max="1" value="0.1" step="0.01">
+                <span id="baseProbValue">10%</span>
                 
                 <button onclick="initializeModel()">Initialize Model</button>
             </div>
@@ -201,17 +225,25 @@
             <div class="control-group">
                 <h3>New Evidence</h3>
                 <label for="evidenceStep">Evidence at Step:</label>
-                <input type="number" id="evidenceStep" value="3" min="1">
+                <input type="number" id="evidenceStep" min="1" max="15" value="3">
                 
                 <label for="lifeStatus">Life Status:</label>
-                <select id="lifeStatus">
+                <select id="lifeStatus" onchange="toggleExtinctControls()">
                     <option value="extinct">Extinct (Fossil)</option>
                     <option value="extant">Extant (Still Alive)</option>
                 </select>
                 
-                <label for="updateStrength">Update Strength:</label>
-                <input type="range" id="updateStrength" min="0.1" max="2.0" step="0.1" value="1.0">
-                <span id="updateValue">1.0x</span>
+                <label for="updateStrengthPrior">Update Strength (Prior & Current Steps):</label>
+                <input type="range" id="updateStrengthPrior" min="1" max="10" value="2" step="0.1">
+                <span id="updateValuePrior">2.0x</span>
+                
+                <div id="extinctControls" class="conditional-controls">
+                    <h4>Extinct Life Additional Controls</h4>
+                    <label for="updateStrengthNext">Update Strength (Next Step):</label>
+                    <input type="range" id="updateStrengthNext" min="1" max="10" value="2" step="0.1">
+                    <span id="updateValueNext">2.0x</span>
+                    <p style="font-size: 12px; margin: 5px 0;">This reduces survival probability for the step after extinction evidence.</p>
+                </div>
                 
                 <button onclick="addEvidence()">Add Evidence</button>
                 <button onclick="resetModel()">Reset to Prior</button>
@@ -220,7 +252,7 @@
             <div class="control-group">
                 <h3>Humanity's Position</h3>
                 <label for="humanityStep">Humanity is currently at step:</label>
-                <input type="number" id="humanityStep" value="7" min="1">
+                <input type="number" id="humanityStep" min="1" max="15" value="7">
                 <p style="font-size: 12px; opacity: 0.8;">
                     This affects the "behind us vs ahead of us" calculation for existential risk assessment.
                 </p>
@@ -277,7 +309,6 @@
         let currentSurvivalProbs = [];
         let priorFilterLocationProbs = [];
         let currentFilterLocationProbs = [];
-        let lastProbAhead = null;
         let baselineProbAhead = null;
         
         const stepNames = [
@@ -298,13 +329,26 @@
             'Ultimate Understanding'
         ];
 
+        function toggleExtinctControls() {
+            const lifeStatus = document.getElementById('lifeStatus').value;
+            const extinctControls = document.getElementById('extinctControls');
+            extinctControls.style.display = lifeStatus === 'extinct' ? 'block' : 'none';
+        }
+
         // Event listeners
         document.getElementById('baseProbability').addEventListener('input', function(e) {
-            document.getElementById('baseProbValue').textContent = (e.target.value * 100).toFixed(0) + '%';
+            const prob = parseFloat(e.target.value);
+            document.getElementById('baseProbValue').textContent = (prob * 100).toFixed(1) + '%';
         });
 
-        document.getElementById('updateStrength').addEventListener('input', function(e) {
-            document.getElementById('updateValue').textContent = e.target.value + 'x';
+        document.getElementById('updateStrengthPrior').addEventListener('input', function(e) {
+            const strength = parseFloat(e.target.value);
+            document.getElementById('updateValuePrior').textContent = strength.toFixed(1) + 'x';
+        });
+
+        document.getElementById('updateStrengthNext').addEventListener('input', function(e) {
+            const strength = parseFloat(e.target.value);
+            document.getElementById('updateValueNext').textContent = strength.toFixed(1) + 'x';
         });
 
         function generateSurvivalProbabilities(shape, steps, baseProb) {
@@ -312,44 +356,35 @@
             
             switch(shape) {
                 case 'uniform':
-                    // All steps have same probability
                     break;
-                    
                 case 'early-hard':
                     for(let i = 0; i < steps; i++) {
-                        const factor = Math.exp(-i * 0.2);
-                        probs[i] = Math.max(0.1, Math.min(0.9, baseProb + (0.8 - baseProb) * (1 - factor)));
+                        const factor = Math.exp(-i * 0.4);
+                        probs[i] = Math.max(0.01, Math.min(1, baseProb + (1 - baseProb) * (1 - factor)));
                     }
                     break;
-                    
                 case 'late-hard':
                     for(let i = 0; i < steps; i++) {
-                        const factor = Math.exp((i - steps/2) * 0.3);
-                        probs[i] = Math.max(0.1, Math.min(0.9, baseProb * (2 - factor)));
+                        const factor = Math.exp((i - steps) * 0.4);
+                        probs[i] = Math.max(0.01, Math.min(1, baseProb * (1.0 + factor)));
                     }
                     break;
-                    
                 case 'middle-hard':
                     for(let i = 0; i < steps; i++) {
                         const center = steps / 2;
                         const distance = Math.abs(i - center);
-                        const factor = Math.exp(-distance * 0.4);
-                        probs[i] = Math.max(0.1, Math.min(0.9, baseProb * factor + 0.2));
+                        const factor = Math.exp(-distance * 0.6);
+                        probs[i] = Math.max(0.01, Math.min(1, baseProb * factor + 0.1));
                     }
                     break;
             }
-            
             return probs;
         }
 
         function calculateFilterLocationProbabilities(survivalProbs) {
-            // The "filter location probability" is based on how much each step 
-            // contributes to the overall difficulty of the evolutionary process
-            
-            const difficultyFactors = survivalProbs.map(p => 1 - p); // Higher difficulty = lower survival
+            const difficultyFactors = survivalProbs.map(p => 1 - p);
             const totalDifficulty = difficultyFactors.reduce((sum, d) => sum + d, 0);
             
-            // Normalize to get probability mass distribution
             if (totalDifficulty === 0) {
                 return new Array(survivalProbs.length).fill(1 / survivalProbs.length);
             }
@@ -365,7 +400,6 @@
                 product *= survivalProbs[i];
                 cumulative.push(product);
             }
-            
             return cumulative;
         }
 
@@ -373,20 +407,16 @@
             numSteps = parseInt(document.getElementById('numSteps').value);
             const shape = document.getElementById('priorShape').value;
             const baseProb = parseFloat(document.getElementById('baseProbability').value);
-            
-            // Update input constraints
+
             document.getElementById('evidenceStep').max = numSteps;
             document.getElementById('humanityStep').max = numSteps;
             
-            // Generate initial survival probabilities
             priorSurvivalProbs = generateSurvivalProbabilities(shape, numSteps, baseProb);
             currentSurvivalProbs = [...priorSurvivalProbs];
             
-            // Calculate filter location probabilities
             priorFilterLocationProbs = calculateFilterLocationProbabilities(priorSurvivalProbs);
             currentFilterLocationProbs = [...priorFilterLocationProbs];
 
-            // set baseline relative to humanity’s current step
             const humanityStep = parseInt(document.getElementById('humanityStep').value) - 1;
             let probAhead = 0;
             for (let i = 0; i < numSteps; i++) {
@@ -398,12 +428,14 @@
             updateTable();
             updateRiskAssessment();
             hideEvidenceInfo();
+            toggleExtinctControls();
         }
 
         function addEvidence() {
-            const evidenceStep = parseInt(document.getElementById('evidenceStep').value) - 1; // Convert to 0-indexed
+            const evidenceStep = parseInt(document.getElementById('evidenceStep').value) - 1;
             const lifeStatus = document.getElementById('lifeStatus').value;
-            const updateStrength = parseFloat(document.getElementById('updateStrength').value);
+            const updateStrengthPrior = parseFloat(document.getElementById('updateStrengthPrior').value);
+            const updateStrengthNext = parseFloat(document.getElementById('updateStrengthNext').value);
             
             if (evidenceStep >= numSteps || evidenceStep < 0) {
                 alert('Evidence step must be between 1 and ' + numSteps);
@@ -413,35 +445,35 @@
             const oldSurvivalProbs = [...currentSurvivalProbs];
             const oldFilterLocationProbs = [...currentFilterLocationProbs];
             
-            // Apply your Excel-style logic
+            // Extant life: increase survival probabilities for steps 1 through N
+            // This shifts filter location probability to later steps
             if (lifeStatus === 'extant') {
-                // Extant life: increase survival probabilities for steps 1 through N
-                // This shifts filter location probability to later steps
-                for(let i = 0; i <= evidenceStep; i++) {
-                    currentSurvivalProbs[i] = Math.min(0.9, currentSurvivalProbs[i] * (1 + updateStrength * 0.2));
+                for(let i = 0; i < numSteps; i++) {
+                    if (i <= evidenceStep) {
+                        currentSurvivalProbs[i] = Math.min(1, currentSurvivalProbs[i] * updateStrengthPrior);
+                    }
                 }
-            } else {
-                // Extinct life: increase survival probabilities for steps 1 through N-1
-                // Decrease survival probability for step N (evidence of filter there)
-                for(let i = 0; i <= evidenceStep; i++) {
-                    currentSurvivalProbs[i] = Math.min(0.9, currentSurvivalProbs[i] * (1 + updateStrength * 0.2));
-                }
-                // Decrease the step where extinction occurred
-                if (evidenceStep+1 < numSteps) {
-                    currentSurvivalProbs[evidenceStep+1] = Math.max(0.1, currentSurvivalProbs[evidenceStep] * (1 - updateStrength * 0.2));
+            // Extinct life: increase survival probabilities for steps 1 through N
+            // Decrease survival probability for step N+1 (evidence of filter there)
+            } else { // 'extinct'
+                for(let i = 0; i < numSteps; i++) {
+                    if (i <= evidenceStep) {
+                        currentSurvivalProbs[i] = Math.min(1, currentSurvivalProbs[i] * updateStrengthPrior);
+                    } else if (i === evidenceStep + 1 && i < numSteps) { // Decrease on the next step where extinction occurred
+                        currentSurvivalProbs[i] = Math.min(1, currentSurvivalProbs[i] / updateStrengthNext);
+                    }
                 }
             }
             
-            // Recalculate filter location probabilities
             currentFilterLocationProbs = calculateFilterLocationProbabilities(currentSurvivalProbs);
             
-            showEvidenceInfo(evidenceStep, lifeStatus, updateStrength, oldSurvivalProbs, oldFilterLocationProbs);
+            showEvidenceInfo(evidenceStep, lifeStatus, updateStrengthPrior, updateStrengthNext, oldSurvivalProbs, oldFilterLocationProbs);
             updateAllCharts();
             updateTable();
             updateRiskAssessment();
         }
 
-        function showEvidenceInfo(step, status, strength, oldSurvival, oldFilterLocation) {
+        function showEvidenceInfo(step, status, strengthPrior, strengthNext, oldSurvival, oldFilterLocation) {
             const evidenceInfo = document.getElementById('evidenceInfo');
             const evidenceDetails = document.getElementById('evidenceDetails');
             
@@ -449,15 +481,16 @@
             const statusText = status === 'extinct' ? 'Extinct (Fossil)' : 'Extant (Still Alive)';
             
             let impactText = `<p><strong>Evidence:</strong> ${statusText} life found at step ${step + 1} (${stepName})</p>`;
-            impactText += `<p><strong>Update Strength:</strong> ${strength}x</p>`;
+            impactText += `<p><strong>Update Strength (Prior & Current):</strong> ${strengthPrior.toFixed(2)}x</p>`;
+            if (status === 'extinct') {
+                impactText += `<p><strong>Update Strength (Next Step):</strong> ${strengthNext.toFixed(2)}x</p>`;
+            }
             
-            // Show filter location probability changes
             impactText += '<p><strong>Filter Location Probability Changes:</strong></p><ul>';
-            
             for (let i = 0; i < numSteps; i++) {
                 const change = currentFilterLocationProbs[i] - oldFilterLocation[i];
-                if (Math.abs(change) > 0.005) {
-                    const changePercent = (change * 100).toFixed(1);
+                if (Math.abs(change) > 0.001) {
+                    const changePercent = (change * 100).toFixed(2);
                     const changeClass = change > 0 ? 'prob-change' : 'prob-change negative';
                     const sign = change > 0 ? '+' : '';
                     impactText += `<li>Step ${i + 1} (${stepNames[i]}): <span class="${changeClass}">${sign}${changePercent}%</span></li>`;
@@ -465,13 +498,11 @@
             }
             impactText += '</ul>';
             
-            // Show survival probability changes
             impactText += '<p><strong>Survival Probability Changes:</strong></p><ul>';
-            
             for (let i = 0; i < numSteps; i++) {
                 const change = currentSurvivalProbs[i] - oldSurvival[i];
-                if (Math.abs(change) > 0.01) {
-                    const changePercent = (change * 100).toFixed(1);
+                if (Math.abs(change) > 0.001) {
+                    const changePercent = (change * 100).toFixed(2);
                     const changeClass = change > 0 ? 'prob-change' : 'prob-change negative';
                     const sign = change > 0 ? '+' : '';
                     impactText += `<li>Step ${i + 1} (${stepNames[i]}): <span class="${changeClass}">${sign}${changePercent}%</span></li>`;
@@ -494,8 +525,8 @@
                 else probAhead += currentFilterLocationProbs[i];
             }
 
-            const riskPercent = (probAhead * 100).toFixed(1);
-            const safePercent = (probBehind * 100).toFixed(1);
+            const riskPercent = (probAhead * 100).toFixed(2);
+            const safePercent = (probBehind * 100).toFixed(2);
 
             let trend = null;
             if (baselineProbAhead !== null) {
@@ -550,7 +581,6 @@
             updateSurvivalChart();
             updateFilterLocationChart();
             updateCumulativeChart();
-            updateStepLabels();
         }
 
         function updateSurvivalChart() {
@@ -558,22 +588,24 @@
                 survivalChart.destroy();
             }
 
+            // Correct labels to use stepNames directly
+            const labels = stepNames.slice(0, numSteps);
+
             const ctx = document.getElementById('survivalChart').getContext('2d');
-            const labels = Array.from({length: numSteps}, (_, i) => `${i + 1}`);
-            
+
             survivalChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
                         label: 'Current',
-                        data: currentSurvivalProbs.map(x => (x * 100).toFixed(1)),
+                        data: currentSurvivalProbs.map(x => (x * 100).toFixed(2)),
                         backgroundColor: 'rgba(54, 162, 235, 0.8)',
                         borderColor: 'rgba(54, 162, 235, 1)',
                         borderWidth: 2
                     }, {
                         label: 'Prior',
-                        data: priorSurvivalProbs.map(x => (x * 100).toFixed(1)),
+                        data: priorSurvivalProbs.map(x => (x * 100).toFixed(2)),
                         backgroundColor: 'rgba(255, 99, 132, 0.3)',
                         borderColor: 'rgba(255, 99, 132, 0.8)',
                         borderWidth: 1,
@@ -582,6 +614,7 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         title: {
                             display: true,
@@ -591,9 +624,23 @@
                         legend: { display: true }
                     },
                     scales: {
+                        x: {
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 90,
+                                minRotation: 0,
+                                callback: function(value, index, ticks) {
+                                    // Return the step number (horizontal) and the step name (rotated)
+                                    return stepNames[index]+ ':\n' + (index + 1);
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Evolutionary Step'
+                            }
+                        },
                         y: {
                             beginAtZero: true,
-                            max: 100,
                             title: {
                                 display: true,
                                 text: 'Survival Probability (%)'
@@ -611,20 +658,20 @@
 
             const ctx = document.getElementById('filterLocationChart').getContext('2d');
             const labels = Array.from({length: numSteps}, (_, i) => `${i + 1}`);
-            
+
             filterLocationChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
                         label: 'Current Filter Location',
-                        data: currentFilterLocationProbs.map(x => (x * 100).toFixed(1)),
+                        data: currentFilterLocationProbs.map(x => (x * 100).toFixed(2)),
                         backgroundColor: 'rgba(255, 107, 107, 0.8)',
                         borderColor: 'rgba(255, 107, 107, 1)',
                         borderWidth: 2
                     }, {
                         label: 'Prior Filter Location',
-                        data: priorFilterLocationProbs.map(x => (x * 100).toFixed(1)),
+                        data: priorFilterLocationProbs.map(x => (x * 100).toFixed(2)),
                         backgroundColor: 'rgba(135, 206, 235, 0.3)',
                         borderColor: 'rgba(135, 206, 235, 0.8)',
                         borderWidth: 1,
@@ -633,6 +680,7 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         title: {
                             display: true,
@@ -642,6 +690,23 @@
                         legend: { display: true }
                     },
                     scales: {
+                        x: {
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 90,
+                                minRotation: 0,
+                                padding: 5,             // small space above axis
+                                align: 'center',
+                                crossAlign: 'top',   // vertically center labels
+                                callback: function(value, index, ticks) {
+                                    return stepNames[index] + ':\n' + (index + 1);
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Evolutionary Step'
+                            }
+                        },
                         y: {
                             beginAtZero: true,
                             title: {
@@ -665,20 +730,28 @@
             const currentCumulative = calculateCumulativeProbabilities(currentSurvivalProbs);
             const priorCumulative = calculateCumulativeProbabilities(priorSurvivalProbs);
             
+            // Combine and find the minimum value. Filter out any non-positive values.
+            const allData = [...currentCumulative, ...priorCumulative].filter(val => val > 0);
+            const lowestValue = Math.min(...allData);
+
+            // Set the dynamic minimum for the y-axis.
+            // Multiplying by 0.1 provides a little space below the lowest data point.
+            const yAxisMin = lowestValue * 0.1;
+
             cumulativeChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
                         label: 'Current Cumulative',
-                        data: currentCumulative.map(x => (x * 100).toFixed(4)),
+                        data: currentCumulative,
                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
                         borderColor: 'rgba(75, 192, 192, 1)',
                         borderWidth: 3,
                         fill: true
                     }, {
                         label: 'Prior Cumulative',
-                        data: priorCumulative.map(x => (x * 100).toFixed(4)),
+                        data: priorCumulative,
                         backgroundColor: 'rgba(255, 159, 64, 0.1)',
                         borderColor: 'rgba(255, 159, 64, 1)',
                         borderWidth: 2,
@@ -688,6 +761,7 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         title: {
                             display: true,
@@ -697,11 +771,38 @@
                         legend: { display: true }
                     },
                     scales: {
-                        y: {
-                            type: 'logarithmic',
+                        x: {
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 90,
+                                minRotation: 0,
+                                callback: function(value, index, ticks) {
+                                    // Return the step number (horizontal) and the step name (rotated)
+                                    return stepNames[index]+ ':\n' + (index + 1);
+                                }
+                            },
                             title: {
                                 display: true,
-                                text: 'Cumulative Probability (%) - Log Scale'
+                                text: 'Evolutionary Step'
+                            }
+                        },
+                        y: {
+                            type: 'logarithmic',
+                            min: yAxisMin, // Use the dynamically calculated minimum
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: 'Cumulative Probability - Log Scale'
+                            },
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    // Format in scientific notation
+                                    if (value >= 0.01) {
+                                        return (value * 100).toFixed(2) + '%';
+                                    } else {
+                                        return value.toExponential(1);
+                                    }
+                                }
                             }
                         }
                     }
@@ -721,56 +822,34 @@
                 
                 row.insertCell(0).textContent = i + 1;
                 row.insertCell(1).textContent = stepNames[i];
-                row.insertCell(2).textContent = (currentSurvivalProbs[i] * 100).toFixed(1) + '%';
-                row.insertCell(3).textContent = (currentFilterLocationProbs[i] * 100).toFixed(1) + '%';
-                row.insertCell(4).textContent = (cumulative[i] * 100).toFixed(4) + '%';
-                row.insertCell(5).textContent = (difficulty * 100).toFixed(1) + '%';
+                row.insertCell(2).textContent = (currentSurvivalProbs[i] * 100).toFixed(2) + '%';
+                row.insertCell(3).textContent = (currentFilterLocationProbs[i] * 100).toFixed(2) + '%';
                 
-                // Highlight steps with high filter probability
+                // Format cumulative probability with scientific notation for very small values
+                const cumulativeCell = row.insertCell(4);
+                if (cumulative[i] >= 0.0001) {
+                    cumulativeCell.textContent = (cumulative[i] * 100).toFixed(4) + '%';
+                } else {
+                    cumulativeCell.textContent = cumulative[i].toExponential(2);
+                }
+                
+                row.insertCell(5).textContent = (difficulty * 100).toFixed(2) + '%';
+                
                 if(currentFilterLocationProbs[i] > 0.15) {
-                    row.style.backgroundColor = '#ffe6e6';
+                    row.style.backgroundColor = 'rgba(255, 230, 230, 0.8)';
                 }
             }
         }
 
-        function updateStepLabels() {
-            const charts = {
-                stepLabels1: survivalChart,
-                stepLabels2: filterLocationChart,
-                stepLabels3: cumulativeChart
-            };
-
-            Object.entries(charts).forEach(([id, chart]) => {
-                const container = document.getElementById(id);
-                container.innerHTML = '';
-                container.style.position = 'relative';
-                container.style.height = '20px'; // more room for multi-line
-                container.style.overflow = 'visible';
-
-                if (!chart || !chart.scales || !chart.scales.x) return;
-
-                const xScale = chart.scales.x;
-
-                for (let i = 0; i < numSteps; i++) {
-                    const label = document.createElement('div');
-                    label.innerHTML = `${stepNames[i]}`; // use innerHTML so wrapping works
-                    label.style.position = 'absolute';
-                    label.style.bottom = '0';
-                    label.style.left = xScale.getPixelForValue(i) + 'px';
-                    label.style.transform = 'translateX(-50px) rotate(-45deg)'; 
-                    label.style.transformOrigin = 'center center';
-                    label.style.fontSize = '10px';
-                    label.style.color = '#666';
-                    label.style.whiteSpace = 'normal'; // allow wrapping
-                    label.style.width = '60px';        // constrain width to force 2 lines
-                    label.style.textAlign = 'center';
-                    container.appendChild(label);
-                }
-            });
-        }
-
         // Initialize on page load
         window.onload = function() {
+            // Update initial slider values for display
+            document.getElementById('baseProbValue').textContent = "10.0%";
+            document.getElementById('updateValuePrior').textContent = "2.0x";
+            document.getElementById('updateValueNext').textContent = "2.0x";
+            
+            // Toggle controls and initialize the model as before
+            toggleExtinctControls();
             initializeModel();
         };
     </script>
