@@ -207,6 +207,21 @@
         .footer-link a:hover {
             text-decoration: underline;
         }
+
+        /* Responsive layout for small screens */
+        @media (max-width: 768px) {
+            .chart-row {
+                grid-template-columns: 1fr; /* stack charts vertically */
+            }
+
+            .analysis-table {
+                overflow-x: auto; /* allow horizontal scroll */
+            }
+
+            .analysis-table table {
+                min-width: 600px; /* prevent extreme shrinking */
+            }
+        }
     </style>
 </head>
 <body>
@@ -221,7 +236,7 @@
             <div class="control-group">
                 <h3>Setup Parameters</h3>
                 <label for="numSteps">Number of Evolutionary Steps:</label>
-                <input type="number" id="numSteps" value="10" min="3" max="15">
+                <input type="number" id="numSteps" value="12" min="3" max="15">
                 
                 <label for="priorShape">Prior Survival Distribution:</label>
                 <select id="priorShape">
@@ -268,7 +283,7 @@
             <div class="control-group">
                 <h3>Humanity's Position</h3>
                 <label for="humanityStep">Humanity is currently at step:</label>
-                <input type="number" id="humanityStep" min="1" max="15" value="7">
+                <input type="number" id="humanityStep" min="1" max="15" value="9">
                 <p style="font-size: 12px; opacity: 0.8;">
                     This affects the "behind us vs ahead of us" calculation for existential risk assessment.
                 </p>
@@ -326,7 +341,7 @@
 
     <script>
         let survivalChart, filterLocationChart, cumulativeChart;
-        let numSteps = 10;
+        let numSteps = 12;
         let priorSurvivalProbs = [];
         let currentSurvivalProbs = [];
         let priorFilterLocationProbs = [];
@@ -334,19 +349,19 @@
         let baselineProbAhead = null;
         
         const stepNames = [
+            'Planetary Habitability',
             'Abiogenesis',
-            'Metabolism', 
+            'Simple Cells',
+            'Oxygenic Photosynthesis',
             'Complex Cells',
-            'Multicellularity',
-            'Complex Organisms',
+            'Sexual Reproduction',
+            'Multicellarity',
             'Intelligence',
             'Technology',
             'Space Travel',
+            'Interstellar Travel',
             'Galactic Expansion',
-            'Transcendence',
             'Post-Biological',
-            'Dimensional Travel',
-            'Universal Engineering',
             'Cosmic Transcendence',
             'Ultimate Understanding'
         ];
