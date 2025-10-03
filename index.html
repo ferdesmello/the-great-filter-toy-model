@@ -77,6 +77,10 @@
             font-size: 14px;
         }
         
+        input[type="range"] {
+            margin-bottom: 0px;
+        }
+
         .control-group input,
         .control-group select,
         .control-group button {
@@ -125,7 +129,7 @@
             background: rgba(255, 255, 255, 0.1);
             padding: 15px;
             border-radius: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 5px;
             border-left: 4px solid #87ceeb;
         }
         
@@ -181,7 +185,8 @@
             border: 2px solid rgba(135, 206, 235, 0.3);
             border-radius: 8px;
             padding: 15px;
-            margin-top: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
             background: rgba(135, 206, 235, 0.05);
         }
 
@@ -235,7 +240,7 @@
         <div class="controls">
             <div class="control-group">
                 <h3>Setup Parameters</h3>
-                <label for="numSteps">Number of Evolutionary Steps:</label>
+                <label for="numSteps">Number of Hard Evolutionary Steps:</label>
                 <input type="number" id="numSteps" value="12" min="3" max="15">
                 
                 <label for="priorShape">Prior Survival Distribution:</label>
@@ -246,7 +251,7 @@
                     <option value="middle-hard">Middle Hard (Complexity crisis)</option>
                 </select>
                 
-                <label for="baseProbability">Base Survival Probability:</label>
+                <label for="baseProbability">Base Step Survival Probability:</label>
                 <input type="range" id="baseProbability" min="0.01" max="1" value="0.1" step="0.01">
                 <span id="baseProbValue">10%</span>
                 
@@ -254,26 +259,41 @@
             </div>
             
             <div class="control-group">
-                <h3>New Evidence</h3>
+                <h3>New Evidence of Alien Life</h3>
                 <label for="evidenceStep">Evidence at Step:</label>
                 <input type="number" id="evidenceStep" min="1" max="15" value="3">
                 
+                <label for="stellarSystem">Evidence Location:</label>
+                <select id="stellarSystem" onchange="toggleSolarSystemControls()">
+                    <option value="other" selected>Other Stellar System</option>
+                    <option value="solar">Solar System (e.g., Mars, Europa)</option>
+                </select>
+
+                <div id="solarSystemControls" class="conditional-controls" style="display: none;">
+                    <h4>Solar System Evidence Additional Control</h4>
+                    <label for="updateStrengthFirst">Update Strength (First Step):</label>
+                    <p style="font-size: 12px; margin: 5px 0;">Our solar system may be more biophilic than the first step is easier.</p>
+                    <span id="updateValueFirst">1.5x</span>
+                    <input type="range" id="updateStrengthFirst" min="1" max="10" value="1.5" step="0.1">
+                </div>
+
                 <label for="lifeStatus">Life Status:</label>
                 <select id="lifeStatus" onchange="toggleExtinctControls()">
+                    <option value="extant" selected>Extant (Still Alive)</option>
                     <option value="extinct">Extinct (Fossil)</option>
-                    <option value="extant">Extant (Still Alive)</option>
                 </select>
                 
                 <label for="updateStrengthPrior">Update Strength (Prior & Current Steps):</label>
-                <input type="range" id="updateStrengthPrior" min="1" max="10" value="2" step="0.1">
+                <p style="font-size: 12px; margin: 5px 0;">How much more probable is for the great filter to be located in the present and prior steps?</p>
                 <span id="updateValuePrior">2.0x</span>
+                <input type="range" id="updateStrengthPrior" min="1" max="10" value="2" step="0.1">
                 
                 <div id="extinctControls" class="conditional-controls">
                     <h4>Extinct Life Additional Controls</h4>
                     <label for="updateStrengthNext">Update Strength (Next Step):</label>
-                    <input type="range" id="updateStrengthNext" min="1" max="10" value="2" step="0.1">
-                    <span id="updateValueNext">2.0x</span>
-                    <p style="font-size: 12px; margin: 5px 0;">This reduces survival probability for the step after extinction evidence.</p>
+                    <p style="font-size: 12px; margin: 5px 0;">More probable for the great filter to be on the next step, as life went extinct on the present step.</p>
+                    <span id="updateValueNext">3.0x</span>
+                    <input type="range" id="updateStrengthNext" min="1" max="10" value="3" step="0.1">
                 </div>
                 
                 <button onclick="addEvidence()">Add Evidence</button>
@@ -379,6 +399,29 @@
             document.getElementById('baseProbValue').textContent = (prob * 100).toFixed(1) + '%';
         });
 
+        // New Event listener for Solar System First Step slider
+        document.getElementById('updateStrengthFirst').addEventListener('input', function(e) {
+            const strength = parseFloat(e.target.value);
+            document.getElementById('updateValueFirst').textContent = strength.toFixed(1) + 'x';
+        });
+
+        // New Toggle function for Solar System controls
+        function toggleSolarSystemControls() {
+            const stellarSystem = document.getElementById('stellarSystem').value;
+            const solarSystemControls = document.getElementById('solarSystemControls');
+            solarSystemControls.style.display = stellarSystem === 'solar' ? 'block' : 'none';
+        }
+
+        // Update the existing toggleExtinctControls to also call the new one on initial load
+        function toggleExtinctControls() {
+            const lifeStatus = document.getElementById('lifeStatus').value;
+            const extinctControls = document.getElementById('extinctControls');
+            extinctControls.style.display = lifeStatus === 'extinct' ? 'block' : 'none';
+            
+            // Call the new toggle function here to ensure the state is correct on initialization
+            toggleSolarSystemControls(); 
+        }
+
         document.getElementById('updateStrengthPrior').addEventListener('input', function(e) {
             const strength = parseFloat(e.target.value);
             document.getElementById('updateValuePrior').textContent = strength.toFixed(1) + 'x';
@@ -475,61 +518,94 @@
 
         //-------------------------------------------------------------------------------
         function addEvidence() {
-            const evidenceStep = parseInt(document.getElementById('evidenceStep').value) - 1;
+            const evidenceStep = parseInt(document.getElementById('evidenceStep').value) - 1; // 0-indexed step number
             const lifeStatus = document.getElementById('lifeStatus').value;
+            const stellarSystem = document.getElementById('stellarSystem').value;
             const updateStrengthPrior = parseFloat(document.getElementById('updateStrengthPrior').value);
             const updateStrengthNext = parseFloat(document.getElementById('updateStrengthNext').value);
-            
+            const updateStrengthFirst = parseFloat(document.getElementById('updateStrengthFirst').value);
+
             if (evidenceStep >= numSteps || evidenceStep < 0) {
                 alert('Evidence step must be between 1 and ' + numSteps);
                 return;
             }
-            
+
             const oldSurvivalProbs = [...currentSurvivalProbs];
             const oldFilterLocationProbs = [...currentFilterLocationProbs];
+
+            // --- APPLY UPDATES BASED ON 4 CASES ---
+
+            if (stellarSystem === 'solar') {
+                // A. Solar System Bias: Apply factor to Step 1 (index 0).
+                if (evidenceStep >= 0) {
+                    currentSurvivalProbs[0] = Math.min(1, currentSurvivalProbs[0] * updateStrengthFirst);
+                }
+
+                // B. General Evidence Factor: Apply factor starting from Step 2 (index 1) up to evidenceStep.
+                for(let i = 1; i < numSteps; i++) {
+                    if (i <= evidenceStep) {
+                        currentSurvivalProbs[i] = Math.min(1, currentSurvivalProbs[i] * updateStrengthPrior);
+                    }
+                }
+
+                // C. Extinction Factor: Apply to the step AFTER evidenceStep, if it exists.
+                if (lifeStatus === 'extinct') {
+                    // **CRITICAL FIX:** Check if the next step exists before trying to access it.
+                    if (evidenceStep + 1 < numSteps) { 
+                        currentSurvivalProbs[evidenceStep + 1] = Math.min(1, currentSurvivalProbs[evidenceStep + 1] / updateStrengthNext);
+                    }
+                }
             
-            // Extant life: increase survival probabilities for steps 1 through N
-            // This shifts filter location probability to later steps
-            if (lifeStatus === 'extant') {
+            } else { // stellarSystem === 'other' (Original Logic)
+
+                // A. General Evidence Factor: Apply factor starting from Step 1 (index 0) up to evidenceStep.
                 for(let i = 0; i < numSteps; i++) {
                     if (i <= evidenceStep) {
                         currentSurvivalProbs[i] = Math.min(1, currentSurvivalProbs[i] * updateStrengthPrior);
                     }
                 }
-            // Extinct life: increase survival probabilities for steps 1 through N
-            // Decrease survival probability for step N+1 (evidence of filter there)
-            } else { // 'extinct'
-                for(let i = 0; i < numSteps; i++) {
-                    if (i <= evidenceStep) {
-                        currentSurvivalProbs[i] = Math.min(1, currentSurvivalProbs[i] * updateStrengthPrior);
-                    } else if (i === evidenceStep + 1 && i < numSteps) { // Decrease on the next step where extinction occurred
-                        currentSurvivalProbs[i] = Math.min(1, currentSurvivalProbs[i] / updateStrengthNext);
+
+                // B. Extinction Factor: Apply to the step AFTER evidenceStep, if it exists.
+                if (lifeStatus === 'extinct') {
+                    // **CRITICAL FIX:** Check if the next step exists before trying to access it.
+                    if (evidenceStep + 1 < numSteps) { 
+                        currentSurvivalProbs[evidenceStep + 1] = Math.min(1, currentSurvivalProbs[evidenceStep + 1] / updateStrengthNext);
                     }
                 }
             }
-            
+         
             currentFilterLocationProbs = calculateFilterLocationProbabilities(currentSurvivalProbs);
-            
-            showEvidenceInfo(evidenceStep, lifeStatus, updateStrengthPrior, updateStrengthNext, oldSurvivalProbs, oldFilterLocationProbs);
+
+            showEvidenceInfo(evidenceStep, lifeStatus, updateStrengthPrior, updateStrengthNext, updateStrengthFirst, oldSurvivalProbs, oldFilterLocationProbs, stellarSystem);
             updateAllCharts();
             updateTable();
             updateRiskAssessment();
         }
 
         //-------------------------------------------------------------------------------
-        function showEvidenceInfo(step, status, strengthPrior, strengthNext, oldSurvival, oldFilterLocation) {
+        // Add updateStrengthFirst and stellarSystem to the signature
+        function showEvidenceInfo(step, status, strengthPrior, strengthNext, strengthFirst, oldSurvival, oldFilterLocation, stellarSystem) { 
             const evidenceInfo = document.getElementById('evidenceInfo');
             const evidenceDetails = document.getElementById('evidenceDetails');
             
             const stepName = stepNames[step];
             const statusText = status === 'extinct' ? 'Extinct (Fossil)' : 'Extant (Still Alive)';
+            const systemText = stellarSystem === 'solar' ? 'Solar System (Local Bias)' : 'Other Stellar System (General)';
+
+            let impactText = `<p><strong>Source:</strong> ${systemText}</p>`;
+            impactText += `<p><strong>Evidence:</strong> ${statusText} life found at step ${step + 1} (${stepName})</p>`;
             
-            let impactText = `<p><strong>Evidence:</strong> ${statusText} life found at step ${step + 1} (${stepName})</p>`;
-            impactText += `<p><strong>Update Strength (Prior & Current):</strong> ${strengthPrior.toFixed(2)}x</p>`;
+            // Display the new Solar System factor if applicable
+            if (stellarSystem === 'solar' && step >= 0) { 
+                impactText += `<p><strong>Update Strength (First Step Only):</strong> ${strengthFirst.toFixed(2)}x</p>`; 
+            }
+
+            impactText += `<p><strong>Update Strength (Prior & Current Steps):</strong> ${strengthPrior.toFixed(2)}x</p>`;
             if (status === 'extinct') {
                 impactText += `<p><strong>Update Strength (Next Step):</strong> ${strengthNext.toFixed(2)}x</p>`;
             }
-            
+
+            // Filter Location Probability Changes
             impactText += '<p><strong>Filter Location Probability Changes:</strong></p><ul>';
             for (let i = 0; i < numSteps; i++) {
                 const change = currentFilterLocationProbs[i] - oldFilterLocation[i];
@@ -542,6 +618,7 @@
             }
             impactText += '</ul>';
             
+            // Survival Probability Changes
             impactText += '<p><strong>Survival Probability Changes:</strong></p><ul>';
             for (let i = 0; i < numSteps; i++) {
                 const change = currentSurvivalProbs[i] - oldSurvival[i];
@@ -899,7 +976,8 @@
             // Update initial slider values for display
             document.getElementById('baseProbValue').textContent = "10.0%";
             document.getElementById('updateValuePrior').textContent = "2.0x";
-            document.getElementById('updateValueNext').textContent = "2.0x";
+            document.getElementById('updateValueNext').textContent = "3.0x";
+            document.getElementById('updateValueFirst').textContent = "1.5x";
             
             // Toggle controls and initialize the model as before
             toggleExtinctControls();
