@@ -8,4 +8,4 @@ Depending on the parameters chosen, the discovery of primitive alien life could 
 
 ## GUI
 
-![The GUI](./figures/GUI.jpeg "GUI")
+[![The GUI](./figures/GUI.jpeg "GUI")](https://ferdesmello.github.io/the-great-filter-toy-model/)
