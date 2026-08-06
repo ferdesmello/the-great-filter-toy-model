@@ -1,11 +1,21 @@
-# the-great-filter-toy-model
+# The Great Filter Toy-Model
 
-A simple interactive toy model to calculate the location of [the great filter](https://en.wikipedia.org/wiki/Great_Filter) given hypothetical new evidence of the discovery of alien life.
+A small interactive toy model for exploring how evidence about extraterrestrial life changes where the [Great Filter](https://en.wikipedia.org/wiki/Great_Filter) is most likely to be.
 
-The model starts with a flat distribution (but others can be chosen) over twelve steps (planetary habitablity to galactic expansion) and a base chance of passing through each filter/step of 10%.
+The page starts from a prior over a sequence of hard evolutionary steps and then updates that belief when you add new evidence. It handles two cases: extant life, where alien life is still alive, and extinct life, where the evidence is a fossil or dead biosignature. Depending on the strength and location of the update, the model can shift probability toward the Great Filter being behind us or still ahead of us.
 
-Depending on the parameters chosen, the discovery of primitive alien life could [increase](https://nickbostrom.com/papers/where-are-they/) or decrease the probability of the great filter being after us, giving us bad or good news for our future and our galactic aspirations.
+This is meant to make the Bayesian intuition behind the Great Filter easier to see, not to settle the Fermi paradox. It is inspired by Nick Bostrom’s discussion of how finding life elsewhere would change our expectations about humanity’s future, and by a discussion I had with someone where we were on opposite sides of the update: would finding evidence of fossil life move part of the probability of the Great Filter back or ahead of us? I thought ahead; he thought back. It seems, by the simulator, that it depends on your update on the new evidence.
 
-## GUI
+## On the page
 
-[![The GUI](./figures/GUI.jpeg "GUI")](https://ferdesmello.github.io/the-great-filter-toy-model/)
+- Choose the number of hard evolutionary steps
+- Pick a prior shape for step difficulty
+- Set the base survival probability per step
+- Add evidence by choosing the step, location, and whether the life is extant or extinct
+- Compare survival, filter-location, and cumulative probability charts
+
+## Demo
+
+[Open the live demo](https://ferdesmello.github.io/the-great-filter-toy-model/)
+
+[![Screenshot of the simulator](./figures/GUI.jpeg "Screenshot of the simulator")](https://ferdesmello.github.io/the-great-filter-toy-model/)
